@@ -38,11 +38,9 @@ We tried
 
 1. __Exact Solution is hard__ : About 10 cities are the upper limit I
    could calculate with a laptop.
-
 2. __Insertion Algorithms are similar__ : At `n_city=99`, different
    initial solutions yield the tour-lengths not different by 8% from
    the best solution.
-
 3. __Reversing segments works__ : Straighten the crossings improves the
     solution significantly.
 
@@ -53,7 +51,6 @@ We tried
     is the list of coordinates of the cities.  `ortools_vrp` in the
     code is the python wrapper. 'vrp' stands for 'Vehicle Routing
     Problem'
-
 ```
 def ortool_tsp(cities):
 
@@ -70,12 +67,10 @@ def ortool_tsp(cities):
 
     return tour_opt, tour_initial
 ```
-
 5. __OR-tools performs good__ : Ortool consistently performs best in
    terms of the total length of the final tour. Mean total lengths
    over the 5 model-cities were calculated with each algorithm for
    comparison.
-
 6.. __In particular with large map__ : The execution times of handmade
    initial solutions increase exponentially with the number of cities
    in a tour.  For small numbers of cities, the optimization by
@@ -309,18 +304,13 @@ discussion, or to be performed later.
 
 1. __Nearest Neighbor__ : Visit the nearest city from the present city.
 
-
 2. __Greedy__ : Connect the shortest edges first until all the points are connected.
-
 3. __Random Insertion__ : Pick one unvisited city randomly and put it in the nearest edge.
-
 4. __Nearest Insertion__ : Pick one unvisited city that is the nearest to one the cities that were already visited.
                            Put it in the nearest edge.
-
-4. __Furthest Insertion__ : Pick one unvisited city that is the furthest from the cities that were already visited.
+5. __Furthest Insertion__ : Pick one unvisited city that is the furthest from the cities that were already visited.
                             Put it in the nearest edge.
-
-5. __Cheapest Insertion__ : Pick one unvisited city where the insertion costs least. The cost to put the city `C`
+65. __Cheapest Insertion__ : Pick one unvisited city where the insertion costs least. The cost to put the city `C`
 to the edge `A-B` is calculated as follows. 
 
 ```
