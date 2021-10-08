@@ -262,9 +262,7 @@ ortool_tsp               12873    316 12464  13308   1.0632 5 256
 TSP consists of three parts,
 
 1. Creating initial tour
-
 2. Preparing algorithms to shorten the tour distance
-
 3. Pick, discard, adjust the algorithms so that the tour distance is closer to the minimum
 
 
@@ -379,12 +377,12 @@ I used the following reference for coding.
 
 
 (Modeling general)\
-https://nbviewer.org/url/norvig.com/ipython/TSP.ipynb
+https://nbviewer.org/url/norvig.com/ipython/TSP.ipynb\
 (Insertions)\
-https://y-uti.hatenablog.jp/entry/2017/11/04/135809
+https://y-uti.hatenablog.jp/entry/2017/11/04/135809\
 (Or-Tools)\
-https://qiita.com/SaitoTsutomu/items/ab9d657c49879df69928
-https://developers.google.com/optimization/routing/vrp
+https://qiita.com/SaitoTsutomu/items/ab9d657c49879df69928\
+https://developers.google.com/optimization/routing/vrp\
 
 In particular this project heavily in debs to the notebook published
 in the first reference. Not only the algorithms themselves, but the
