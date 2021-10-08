@@ -1,0 +1,971 @@
+import plotly.graph_objs as go
+from plotly.subplots import make_subplots
+from statistics import mean, stdev
+import functools
+import itertools
+import random
+from datetime import datetime
+import sys
+import pdb
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+
+from ortoolpy import ortools_vrp
+import scipy.spatial.distance as sci_dist
+
+# ==================================================
+# class for point (city)
+# ==================================================
+
+
+class Point(complex):
+    x = property(lambda p: p.real)
+    y = property(lambda p: p.imag)
+
+
+City = Point
+
+# ==================================================
+# class for point (city)
+# ==================================================
+
+
+def Cities(n, width=1024, height=1024, seed=42) -> frozenset:
+    """
+    Create given number of cities  (points) in 1024x1024 field. 
+    Cities are randomly distributed. 
+
+    """
+    random.seed(seed * n)
+    return frozenset(City(random.randrange(width),
+                          random.randrange(height)) for c in range(n))
+
+
+# ==================================================
+
+
+def alltours_tsp(cities) -> tuple:
+    "Generate all possible tours of the citiesand choose the shortest tour."
+    tours = alltours(cities)
+    return shortest_tour(tours), tours
+
+
+def alltours(cities) -> list:
+    """
+    Return a list of tours, each a permutation of cities,
+    but each one starting with the same city.
+
+    """
+    Tour = list
+    start = first(cities)
+    return [[start] + Tour(rest)
+            for rest in itertools.permutations(cities-{start})]
+
+
+def distance(A, B) -> float:
+    "The distance between two points."
+    return abs(A-B)
+
+
+def tour_length(tour) -> float:
+    "The total of distances betwen each pair of consecutive cities in the tour."
+    return sum(distance(tour[i], tour[i-1]) for i in range(len(tour)))
+
+
+def shortest_tour(tours) -> list:
+    "Choose the tour with the minimum tour length."
+    return min(tours, key=tour_length)
+
+
+def valid_tour(tour, cities) -> bool:
+    """
+    Is tour a valid tour for these cities?
+    """
+    return set(tour) == set(cities) and len(tour) == len(cities)
+
+
+def first(collection) -> Point:
+    """
+    Start iterating over collection, and return the first element.
+    """
+    return next(iter(collection))
+
+
+def Maps(num_maps, num_cities) -> tuple:
+    """
+    Return a tuple of maps, ech consisteng of the given number of cities.
+
+    """
+    return tuple(Cities(num_cities, seed=(m, num_cities))
+                 for m in range(num_maps))
+
+# ==================================================
+# wrapper for swaping two points if shorter
+# ==================================================
+
+
+def alter_wrapper(tour, _):
+    tour_opt = alter_tour(tour)
+    return tour_opt, tour
+
+# ==================================================
+# benchmark
+# ==================================================
+
+
+@ functools.lru_cache(None)
+def benchmark(function, inputs):
+    """
+    Run function on all the inputs: return pair of (average_time_taken, retults).
+
+    """
+    t0 = datetime.now()
+    rs = [alter_wrapper(*(function(x))) for x in inputs]
+
+    results = [r for (r, _) in rs]
+
+    t1 = datetime.now()
+#    print(f'inputs : {len(inputs)}')
+    average_time = (t1-t0) / len(inputs)
+    return (average_time, results)
+
+
+def benchmarks(tsp_algorithms, maps=Maps):
+    """
+    Print benchmark statistics for each of the algorithms.
+    """
+
+    df_list = []
+    tour_list = []
+    length_list = []
+    print(f"\033[33m{'algorithm':24}\
+\033[36m{'mean':6} {'sdv':6}\
+\033[34m{'min':6} {'max':6}\
+\033[32m{'time[s]':9} \033[33m{'rep':1} {'city':2}\033[0m")
+
+    for tsp in tsp_algorithms:
+        time, results = benchmark(tsp, maps)
+        lengths = [tour_length(r) for r in results]
+        tour_list.append(results[0])
+        length_list.append(lengths[0])
+
+        print(f'\033[33m{tsp.__name__:24}\
+\033[36m{mean(lengths):6.0f} {stdev(lengths):6.0f}\
+\033[34m{min(lengths):6.0f} {max(lengths):6.0f}\
+\033[32m{time.total_seconds():9.4f} \033[33m{len(maps):1} {len(maps[0]):2}\033[0m')
+
+        df_list.append(pd.DataFrame(
+            dict(algorithm=[tsp.__name__],
+                 mean=[mean(lengths)],
+                 stddev=[stdev(lengths)],
+                 min=[min(lengths)],
+                 max=[max(lengths)],
+                 time=[time.total_seconds()],
+                 n_rep=[len(maps)],
+                 n_city=[len(maps[0])])))
+
+    df = pd.concat(df_list, axis=0, ignore_index=True)
+    min_length = df['mean'].min()
+    factor = pd.DataFrame(dict(factor=df['mean'] / min_length))
+    first_length = pd.DataFrame(dict(first_length=length_list))
+    df = pd.concat([df, factor, first_length], axis=1)
+
+    return df, tour_list
+
+
+# ==================================================
+# reverse segment
+# ==================================================
+
+
+def alter_tour(tour):
+    """
+    Try to alter tour for the better by reversing segments.
+    """
+
+    original_length = tour_length(tour)
+    for (start, end) in all_segments(len(tour)):
+        tour = reverse_segment_if_better(tour, start, end)
+
+    # If we made an improvement, then try again; else stop and return tour.
+    if tour_length(tour) < original_length:
+        return alter_tour(tour)
+    # interesting iterative execusion, like lisp
+
+    return tour
+
+
+def reverse_segment_if_better(tour, i, j):
+    """
+    If reverseing tour[i:j] would namke the tour shorter, do it.
+
+    """
+    # Given tour [... A-B....C-D... ], consider reversing B...C
+    # to get [... A-C....B-D...]
+
+    A, B, C, D = tour[i-1], tour[i], tour[j-1], tour[j % len(tour)]
+
+    # Are old edges (AB + CD) longer than new ones (AC + BD)?
+    # if so, rverse segment.
+
+    if distance(A, B) + distance(C, D) > distance(A, C) + distance(B, D):
+        tour[i:j] = reversed(tour[i:j])
+
+    return tour
+
+
+def all_segments(N):
+    """
+    Return (start, end) pairs of indexes that orm segments of tour of length N
+
+    """
+    return [(start, start + length)
+            for length in range(N, 2-1, -1)
+            for start in range(N - length + 1)]
+
+# ==================================================
+# nearest neighbor
+# ==================================================
+
+
+def nn_tsp(cities):
+    """
+    Start the tour at the first city; at each step extend the tour
+    by moving from the previous city to the nearest neighboring city, C,
+    that has notyet been visited.
+
+    """
+    start = first(cities)
+    tour = [start]
+
+    unvisited = set(cities - {start})
+
+    tours = []
+    while unvisited:
+        C = nearest_neighbor(tour[-1], unvisited)
+        tour.append(C)
+        tours.append(tour[:])
+        unvisited.remove(C)
+
+    t = tour + [tour[0]]
+    tours.append(t[:])
+
+    return tour, tours
+
+
+def nearest_neighbor(A, cities):
+    """
+    Find the city in cities that is nearest to city A.
+    """
+    return min(cities, key=lambda c: distance(c, A))
+
+
+# ==================================================
+# random_insertion
+# ==================================================
+
+
+def random_insertion_tsp(cities):
+    """
+
+    Pick one City and insert it in the nearest edge
+
+    """
+    start = first(cities)
+    second = first(cities - {start})
+
+    tour = [start, second]
+
+    unvisited = set(cities - {start} - {second})
+    tours = []
+    tours.append(tour[:])
+
+    for u in unvisited:
+        idx = find_insert_position(u, tour)
+        tour.insert(idx, u)
+        tours.append(tour[:])
+
+    t = tour + [tour[0]]
+    tours.append(t[:])
+
+    return tour, tours
+
+
+# ==================================================
+# nearest_insertion
+# ==================================================
+
+
+def nearest_insertion_tsp(cities):
+    """
+
+    Pick one City and insert it in the nearest edge
+
+    """
+    start = first(cities)
+    second = first(cities - {start})
+
+    tour = [start, second]
+
+    unvisited = set(cities - {start} - {second})
+    tours = []
+    tours.append(tour[:])
+
+    while unvisited:
+        u, _ = nearest_unvisited(unvisited, tour)
+        idx = find_insert_position(u, tour)
+        tour.insert(idx, u)
+        tours.append(tour[:])
+        unvisited.remove(u)
+
+    t = tour + [tour[0]]
+    tours.append(t[:])
+
+    return tour, tours
+
+
+def nearest_unvisited(unvisited, tour):
+    edges = [(A, B) for A in unvisited for B in tour]
+    return min(edges, key=lambda edge: distance(*edge))
+    # '*edge' is to separate a uple
+    # (A, B) A: unvisited, B: a city in tour
+
+
+# ==================================================
+# furthest_insertion
+# ==================================================
+
+
+def furthest_insertion_tsp(cities):
+    """
+
+    Pick one City and insert it in the nearest edge
+
+    """
+    start = first(cities)
+    second = first(cities - {start})
+
+    tour = [start, second]
+
+    unvisited = set(cities - {start} - {second})
+    tours = []
+    tours.append(tour[:])
+
+    while unvisited:
+        u, _ = furthest_unvisited(unvisited, tour)
+        idx = find_insert_position(u, tour)
+        tour.insert(idx, u)
+        tours.append(tour[:])
+        unvisited.remove(u)
+
+    t = tour + [tour[0]]
+    tours.append(t[:])
+    return tour, tours
+
+
+def furthest_unvisited(unvisited, tour):
+    edges = [(A, B) for A in unvisited for B in tour]
+    return max(edges, key=lambda edge: distance(*edge))
+    # '*edge' is to separate a uple
+    # (A, B) A: unvisited, B: a city in tour
+
+
+def find_insert_position(C, tour):
+    idx = 0 if distance(C, tour[0]) < distance(C, tour[-1]) else len(tour)
+    min_cost = min(distance(C, tour[0]), distance(C, tour[-1]))
+
+    for A in tour[: -1]:
+        B = tour[tour.index(A) + 1]
+        cost = distance(A, C) + distance(B, C) - distance(A, B)
+        if (cost < min_cost):
+            min_cost = cost
+            idx = tour.index(B)
+
+    return idx
+
+# ==================================================
+# cheapest_insertion
+# ==================================================
+
+
+def cheapest_insertion_tsp(cities):
+    """
+
+    Pick one City that costs least when inserted in a tour
+
+    """
+    start = first(cities)
+    second = first(cities - {start})
+
+    tour = [start, second, start]
+
+    unvisited = set(cities - {start} - {second})
+    tours = []
+    tours.append(tour[:])
+
+    while unvisited:
+        C, A, B = cheapest_unvisited(unvisited, tour)
+        # if tour.index(A) > tour.index(B):
+        #     A, B = B, A
+
+        idx = tour.index(B)
+        if (tour.index(B) == 0):
+            idx = len(tour) - 1  # insert it at the end
+
+        tour.insert(idx, C)
+        tours.append(tour[:])
+        unvisited.remove(C)
+
+    t = tour + [tour[0]]
+    tours.append(t[:])
+
+    return tour, tours
+
+
+def insertion_cost(P):
+    C, A, B = P
+    return distance(A, C) + distance(B, C) - distance(A, B)
+
+
+def cheapest_unvisited(unvisited, tour):
+    edges = [(tour[i-1], tour[i]) for i in range(len(tour))]
+    possible_insertion = [(C, *e) for C in unvisited for e in edges]
+
+    return min(possible_insertion, key=insertion_cost)
+
+
+# ==================================================
+# greedy algorithm
+# ==================================================
+
+def greedy_tsp(cities):
+    """
+    Go through edges, shortest first. Use edge to join segments if possbile.
+
+    """
+    edges = shortest_edges_first(cities)
+    endpoints = {c: [c] for c in cities}  # A dict of {endpoint: segment}
+    # at the beginning, all cities are its own endoints
+
+    segments_list = []
+    i = 0
+    for (A, B) in edges:  # try all possible edges
+        # 'shortest_edgets_first' returns a list of tupple (A,B)
+        # in case A and B are still ends of segments,
+        #  and they are not in the same segment
+        if A in endpoints and B in endpoints and endpoints[A] != endpoints[B]:
+            new_segment, endpoints = join_endpoints(endpoints, A, B)
+            segments = set(map(tuple, endpoints.values()))
+            segments_list.append(segments)
+
+        # if all points are connected, get out of the loop
+        if len(new_segment) == len(cities):
+            #            print(segments)
+            segments_list.append(
+                {list(segments)[0] + (list(segments)[0][0], )})
+            return new_segment, segments_list
+
+
+def shortest_edges_first(cities):
+    """
+    Return all edges between distinct cities, sorted shortest first.
+    """
+    edges = [(A, B) for A in cities for B in cities if id(A) < id(B)]
+    return sorted(edges, key=lambda edge: distance(*edge))
+
+
+def join_endpoints(endpoints, A, B):
+    """
+    Join B's segment onto the end of A"s and return the segments. Maintain endopints dict.
+
+    """
+    Asegment, Bsegment = endpoints[A], endpoints[B]
+
+    # A must be at the end of Asegment
+    if Asegment[-1] is not A:
+        Asegment.reverse()
+    # B must be at the beginning of Bsegment
+    if Bsegment[0] is not B:
+        Bsegment.reverse()
+
+    Asegment.extend(Bsegment)  # connect
+    del endpoints[A], endpoints[B]  # A and B are no longer endopints
+    # make two new segments
+    endpoints[Asegment[0]] = Asegment
+    endpoints[Asegment[-1]] = Asegment
+
+    return Asegment, endpoints
+
+
+# ==================================================
+#  ortoolpy scratch
+# ==================================================
+
+def ortool_tsp(cities):
+
+    x = [p.x for p in cities]
+    y = [p.y for p in cities]
+
+    df = pd.DataFrame(dict(x=x, y=y))
+    dist = sci_dist.cdist(df.values, df.values).astype(int)
+    route = ortools_vrp(len(df), dist, limit_time=1)[0]
+
+    tour_initial = list(cities)
+    tour_opt = [tour_initial[i] for i in route]
+
+    return tour_opt, tour_initial
+
+
+# ==================================================
+# visualization
+# ==================================================
+
+def segments_to_xy(segments):
+
+    x = []
+    y = []
+    for s in segments:
+        s = list(s)
+#        print(s, type(s))
+        x = x + [p.x for p in s]
+        y = y + [p.y for p in s]
+        x.append(None)
+        y.append(None)
+
+    return x, y
+
+# ---------------------------------------------------
+# without animation
+
+
+def visualize_benchmark(tours, df):
+    """
+    Visualize benchmark.
+
+    """
+    n_tours = len(tours)
+
+    n_rows = n_tours
+    n_cols = 1
+
+    x_anchor = ['x'+str(i+1) for i in range(n_tours)]
+    y_anchor = ['y'+str(i+1) for i in range(n_tours)]
+    x_anchor[0] = 'x'
+    y_anchor[0] = 'y'
+
+    specs_list = [[dict(type="xy")] * n_cols] * n_rows
+    title_text = f'n_city {df.loc[0, "n_city"]} n_rep {df.loc[0, "n_rep"]} algorithm first/min/mean'
+
+    # ===============================
+    # sort by mean
+
+    df_sorted = df.sort_values(['mean'], axis=0)
+
+    sorted_idx = list(df_sorted.index)
+
+    tours_sorted = [tours[i] for i in sorted_idx]
+    subplot_titles = [t1.replace("_tsp", "") + f' {t2:4.0f}/{t3:4.0f}/{t4:4.0f}' for t1, t2, t3, t4
+                      in zip(df_sorted['algorithm'], df_sorted['first_length'],
+                             df_sorted['min'], df_sorted['mean'])]
+
+    # ===============================
+    fig = make_subplots(rows=n_rows, cols=n_cols,
+                        vertical_spacing=0.02,
+                        #                        vertical_spacing=0.04,
+                        subplot_titles=subplot_titles,
+                        specs=specs_list
+                        )
+    fig.update_annotations(font_size=24)
+
+    # ===============================
+    data = []
+    for i, tour in enumerate(tours_sorted):
+        tour.append(first(tour))
+        x = [p.x for p in tour]
+        y = [p.y for p in tour]
+
+        trace_marker = go.Scatter(x=x, y=y,
+                                  name="Cities",
+                                  mode='markers',
+                                  opacity=1.0,
+                                  visible=True,
+                                  marker=dict(size=14, color='teal'),
+                                  xaxis=x_anchor[i],
+                                  yaxis=y_anchor[i])
+
+        trace_line = go.Scatter(x=x, y=y,
+                                mode='lines',
+                                opacity=1.0,
+                                line=dict(width=4, color='coral'),
+                                visible=True,
+                                xaxis=x_anchor[i],
+                                yaxis=y_anchor[i])
+
+        data.append(trace_marker)
+        data.append(trace_line)
+
+    fig.update_xaxes(range=[0, 1024], autorange=False,
+                     tickfont=dict(size=20))
+    fig.update_yaxes(range=[0, 1024], autorange=False,
+                     tickfont=dict(size=20))
+
+    layout = go.Layout(hovermode='closest',
+                       margin=dict(l=0, r=0, t=64, b=0),
+                       width=512, height=512 * n_tours,
+                       showlegend=False)
+
+    layout = fig.layout.update(layout)
+    fig = go.Figure(data=data, layout=layout)
+    fig.show()
+
+
+# ---------------------------------------------------
+# without animation
+
+def visualize_gd(cities, segments_list, title_text):
+    """
+    Plot nn solution in animation
+    """
+
+    points = list(cities)
+    x = [p.x for p in points]
+    y = [p.y for p in points]
+
+    trace_marker = go.Scatter(x=x, y=y,
+                              name="Cities",
+                              mode='markers',
+                              opacity=1.0,
+                              visible=True,
+                              marker=dict(size=14, color='teal'),
+                              xaxis='x1', yaxis='y1')
+
+    data_city = [trace_marker, trace_marker]
+    frames = []
+
+    # ---------------------------------------------------
+    for segments in segments_list:
+
+        x, y = segments_to_xy(segments)
+        trace_line = go.Scatter(x=x, y=y,
+                                mode='lines',
+                                opacity=1.0,
+                                line=dict(width=4, color='coral'),
+                                visible=True,
+                                xaxis='x1', yaxis='y1')
+
+        data = [trace_marker, trace_line]
+
+        frame = go.Frame(data=data, traces=[0, 1])
+        frames.append(frame)
+
+    # ---------------------------------------------------
+    button_start = dict(
+        label='PLAY',
+        method='animate',
+        args=[None, dict(frame=dict(duration=100, redraw=False),
+                         transition=dict(duration=0),
+                         fromcurrent=True,
+                         mode='immediate')])
+    button_stop = dict(
+        label='|',
+        method='animate',
+        args=[[None], dict(frame=dict(duration=00, redraw=False),
+                           transition=dict(duration=0),
+                           fromcurrent=True,
+                           mode='immediate')])
+
+    layout = go.Layout(hovermode='closest',
+                       margin=dict(l=0, r=0, t=64, b=0),
+                       xaxis=dict(
+                           range=[0, 1024], autorange=False, tickfont=dict(size=20)),
+                       yaxis=dict(
+                           range=[0, 1024], autorange=False, tickfont=dict(size=20)),
+                       width=512, height=512,
+                       title=title_text,
+                       showlegend=False,
+                       updatemenus=[dict(type='buttons', y=0, x=1.05,
+                                         xanchor='left', yanchor='bottom',
+                                         buttons=[button_start, button_stop])])
+
+    fig = go.Figure(data=data_city, layout=layout, frames=frames)
+    fig.show()
+
+
+# ==================================================
+# visualization
+# ==================================================
+# ---------------------------------------------------
+# visualize two tours to compare
+
+def visualize_two_tours(tour_altered, tour, title_text):
+    """
+    Plot two tours side by side
+    """
+
+    n_rows = 1
+    n_cols = 2
+
+    specs_list = [[dict(type="xy")] * n_cols] * n_rows
+    # ===============================
+    fig = make_subplots(rows=n_rows, cols=n_cols,
+                        horizontal_spacing=0.01,
+                        vertical_spacing=0.008,
+                        subplot_titles=('Before', 'After'),
+                        specs=specs_list
+                        )
+    fig.update_annotations(font_size=20)
+
+    # ===============================
+    tour.append(first(tour))
+    x = [p.x for p in tour]
+    y = [p.y for p in tour]
+
+    trace_marker = go.Scatter(x=x, y=y,
+                              name="Cities",
+                              mode='markers',
+                              opacity=1.0,
+                              visible=True,
+                              marker=dict(size=14, color='teal'),
+                              xaxis='x', yaxis='y')
+
+    trace_line = go.Scatter(x=x, y=y,
+                            mode='lines',
+                            opacity=1.0,
+                            line=dict(width=4, color='coral'),
+                            visible=True,
+                            xaxis='x', yaxis='y')
+
+    data = [trace_marker, trace_line]
+    # ===============================
+    tour_altered.append(first(tour_altered))
+    x = [p.x for p in tour_altered]
+    y = [p.y for p in tour_altered]
+
+    trace_marker_altered = go.Scatter(x=x, y=y,
+                                      name="Cities",
+                                      mode='markers',
+                                      opacity=1.0,
+                                      visible=True,
+                                      marker=dict(size=14, color='teal'),
+                                      xaxis='x2', yaxis='y2')
+
+    trace_line_altered = go.Scatter(x=x, y=y,
+                                    mode='lines',
+                                    opacity=1.0,
+                                    line=dict(width=4, color='crimson'),
+                                    visible=True,
+                                    xaxis='x2', yaxis='y2')
+
+    data_altered = [trace_marker_altered, trace_line_altered]
+
+    # ===============================
+    layout = go.Layout(hovermode='closest',
+                       margin=dict(l=0, r=0, t=64, b=0),
+
+                       xaxis=dict(
+                           range=[0, 1024], autorange=False, tickfont=dict(size=20)),
+                       yaxis=dict(
+                           range=[0, 1024], autorange=False, tickfont=dict(size=20)),
+                       xaxis2=dict(
+                           range=[0, 1024], autorange=False, tickfont=dict(size=20)),
+                       yaxis2=dict(
+                           range=[0, 1024], autorange=False, tickfont=dict(size=20)),
+                       width=1024, height=512,
+                       title=title_text,
+                       showlegend=False)
+
+    layout = fig.layout.update(layout)
+    fig = go.Figure(data=data + data_altered, layout=layout)
+    fig.show()
+
+# ---------------------------------------------------
+# animation
+
+
+def visualize_initial_solution(cities, tours, title_text):
+    """
+    Plot initial solutions in animation
+    """
+    points = list(cities)
+    x = [p.x for p in points]
+    y = [p.y for p in points]
+
+    trace_marker = go.Scatter(x=x, y=y,
+                              name="Cities",
+                              mode='markers',
+                              opacity=1.0,
+                              visible=True,
+                              marker=dict(size=14, color='teal'),
+                              xaxis='x1', yaxis='y1')
+
+    data_city = [trace_marker, trace_marker]
+
+    frames = []
+    for tour in tours:
+
+        points = list(tour)
+        x = [p.x for p in points]
+        y = [p.y for p in points]
+        # -------------------------------
+
+        trace_line = go.Scatter(x=x, y=y,
+                                name="Route",
+                                mode='lines',
+                                opacity=1.0,
+                                visible=True,
+                                line=dict(width=4, color='coral'),
+                                xaxis='x1', yaxis='y1')
+
+        data = [trace_line]
+
+        frame = go.Frame(data=data, traces=[0])
+        frames.append(frame)
+
+    # ---------------------------------------------------
+    button_start = dict(
+        label='PLAY',
+        execute=True,
+        method='animate',
+        args=[None, dict(frame=dict(duration=100, redraw=False),
+                         transition=dict(duration=100),
+                         fromcurrent=True,
+                         mode='immediate')])
+    button_stop = dict(
+        label='|',
+        method='animate',
+        args=[[None], dict(frame=dict(duration=0, redraw=False),
+                           transition=dict(duration=0),
+                           fromcurrent=True,
+                           mode='immediate')])
+
+    layout = go.Layout(hovermode='closest',
+                       margin=dict(l=0, r=0, t=64, b=0),
+                       xaxis=dict(
+                           range=[0, 1024], autorange=False, tickfont=dict(size=20)),
+                       yaxis=dict(
+                           range=[0, 1024], autorange=False, tickfont=dict(size=20)),
+                       width=512, height=512,
+                       title=title_text,
+                       showlegend=False,
+                       updatemenus=[dict(type='buttons', y=0, x=1.05,
+                                         xanchor='left', yanchor='bottom',
+                                         buttons=[button_start, button_stop])])
+
+    fig = go.Figure(data=data_city, layout=layout, frames=frames)
+    fig.show()
+
+# ==================================================
+# animation
+
+
+def visualize_all_solution(cities, tours, title_text):
+    """
+    Plot the cities and the tours in animation
+
+    """
+    # -------------------------------
+    n_rows = 1
+    n_cols = 2
+
+    specs_list = [[dict(type="xy")] * n_cols] * n_rows
+    # ===============================
+    fig = make_subplots(rows=n_rows, cols=n_cols,
+                        horizontal_spacing=0.01,
+                        vertical_spacing=0.008,
+                        subplot_titles=('All Routes', 'Best So Far'),
+                        specs=specs_list
+                        )
+    fig.update_annotations(font_size=20)
+
+    points = list(cities)
+    x = [p.x for p in points]
+    y = [p.y for p in points]
+
+    trace_marker = go.Scatter(x=x, y=y,
+                              name="Cities",
+                              mode='markers',
+                              opacity=0.6,
+                              marker=dict(size=14, color='teal'),
+                              xaxis='x1', yaxis='y1')
+
+    trace_marker2 = go.Scatter(x=x, y=y,
+                               name="Cities",
+                               mode='markers',
+                               opacity=0.6,
+                               marker=dict(size=14, color='coral'),
+                               xaxis='x2', yaxis='y2')
+
+    data_city = [trace_marker, trace_marker, trace_marker2, trace_marker2]
+
+    length_opt = tour_length(tours[0])
+    frames = []
+    for i, tour in enumerate(tours):
+
+        points = list(tour) + [tour[0]]
+        x = [p.x for p in points]
+        y = [p.y for p in points]
+        # -------------------------------
+        length = tour_length(tour)
+        length_text = f'length {length: 8.2f}'
+
+        # -------------------------------
+        trace_line = go.Scatter(x=x, y=y,
+                                name="Route",
+                                mode='lines',
+                                opacity=1.0,
+                                line=dict(width=4, color='teal'),
+                                xaxis='x1', yaxis='y1')
+
+        trace_line2 = go.Scatter(x=x, y=y,
+                                 name="Route",
+                                 mode='lines+text',
+                                 opacity=1.0,
+                                 line=dict(width=4, color='coral'),
+                                 text=[length_text],
+                                 textposition="bottom right",
+                                 textfont_size=20,
+                                 xaxis='x2', yaxis='y2')
+
+        if i == 0:
+            trace_opt = trace_line2
+
+        if length < length_opt:
+            length_opt = length
+            trace_opt = trace_line2
+
+        data = [trace_line, trace_opt]
+
+        frame = go.Frame(data=data, traces=[0, 1])
+        frames.append(frame)
+
+    button = dict(
+        label='PLAY',
+        method='animate',
+        args=[None, dict(frame=dict(duration=0, redraw=False),
+                         transition=dict(duration=0),
+                         fromcurrent=True,
+                         mode='immediate')])
+
+    layout = go.Layout(hovermode='closest',
+                       margin=dict(l=0, r=0, t=64, b=0),
+                       xaxis=dict(
+                           range=[0, 1024], autorange=False, tickfont=dict(size=20)),
+                       yaxis=dict(
+                           range=[0, 1024], autorange=False, tickfont=dict(size=20)),
+                       xaxis2=dict(
+                           range=[0, 1024], autorange=False, tickfont=dict(size=20)),
+                       yaxis2=dict(
+                           range=[0, 1024], autorange=False, tickfont=dict(size=20)),
+                       width=1024, height=512,
+                       title=title_text,
+                       showlegend=False,
+                       updatemenus=[dict(type='buttons', y=0, x=1.05,
+                                         xanchor='left', yanchor='bottom', buttons=[button])])
+
+    layout = fig.layout.update(layout)
+    fig = go.Figure(data=data_city, layout=layout, frames=frames)
+    fig.show()
+
+
+# ==================================================
