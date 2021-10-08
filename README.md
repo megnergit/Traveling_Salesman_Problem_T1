@@ -367,12 +367,15 @@ I used the following reference for coding.
 
 
 (Modeling general)\
-https://nbviewer.org/url/norvig.com/ipython/TSP.ipynb\
+https://nbviewer.org/url/norvig.com/ipython/TSP.ipynb
+
 (Insertions)\
-https://y-uti.hatenablog.jp/entry/2017/11/04/135809\
+https://y-uti.hatenablog.jp/entry/2017/11/04/135809
+
 (Or-Tools)\
-https://qiita.com/SaitoTsutomu/items/ab9d657c49879df69928\
-https://developers.google.com/optimization/routing/vrp\
+https://qiita.com/SaitoTsutomu/items/ab9d657c49879df69928
+
+https://developers.google.com/optimization/routing/vrp
 
 In particular this project heavily in debs to the notebook published
 in the first reference. Not only the algorithms themselves, but the
