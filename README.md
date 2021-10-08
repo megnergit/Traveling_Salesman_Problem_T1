@@ -252,7 +252,7 @@ ortool_tsp               12873    316 12464  13308   1.0632 5 256
 
 
 ------------------------------------------------------------------
-## TSP Overview
+### TSP Overview
 
 TSP consists of three parts,
 
@@ -300,7 +300,7 @@ discussion, or to be performed later.
 6. Benchmarking
 
 
-#### Initial solutions quick overview
+#### Initial solution quick overview
 
 1. __Nearest Neighbor__ : Visit the nearest city from the present city.
 
