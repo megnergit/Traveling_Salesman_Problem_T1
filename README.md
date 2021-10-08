@@ -3,7 +3,7 @@
 ## Traveling Salesman Problem
 
 Traveling Salesman Problem (TSP) is to find the shortest route while
-visiting all the cities that are given. Every citiy has to be visited,
+visiting all the cities that are given. Every city has to be visited,
 but once. The salesman will come back to the city he started.
 
 ------------------------------------------------------------------
@@ -51,7 +51,7 @@ We tried
 4. __OR-tools is simple__ `OR-Tools` and its Python wrapper makes the
     code short. The following is the entire function needed. `cities`
     is the list of coordinates of the cities.  `ortools_vrp` in the
-    code is the python wrapper. 'vrp' stands for 'Viehcle Routing
+    code is the python wrapper. 'vrp' stands for 'Vehicle Routing
     Problem'
 
 ```
@@ -63,7 +63,7 @@ def ortool_tsp(cities):
     df = pd.DataFrame(dict(x=x, y=y))
     dist = sci_dist.cdist(df.values, df.values).astype(int)
     route = ortools_vrp(len(df), dist, limit_time=1)[0]
-    # 'ortools_vrp' is the python wrapper. 'vrp' stands for 'Viehcle Routing Problem'
+    # 'ortools_vrp' is the python wrapper. 'vrp' stands for 'Vehicle Routing Problem'
 
     tour_initial = list(cities)
     tour_opt = [tour_initial[i] for i in route]
@@ -74,7 +74,7 @@ def ortool_tsp(cities):
 5. __OR-tools performs good__ Ortool consistently performs best in
    terms of the total length of the final tour. Mean total lengths
    over the 5 model-cities were calculated with each algorithm for
-   comparision.
+   comparison.
 
 6.. __In particular with large map__ The execution times of handmade
    initial solutions increase exponentially with the number of cities
@@ -86,7 +86,7 @@ def ortool_tsp(cities):
    100-200.
 
 ------------------------------------------------------------------
-## Diretory Tree
+## Directory Tree
 ```
 .
 ├── .gitignore
@@ -270,8 +270,8 @@ TSP consists of three parts,
 ### Project Overview
 
 In this project we performed the following. The items in the
-parenthesis `()` are not performed but shwon for the sake of the
-discussion, or to be perfomed later.
+parenthesis `()` are not performed but shown for the sake of the
+discussion, or to be performed later.
 
 
 0. Exact solution
@@ -290,7 +290,7 @@ discussion, or to be perfomed later.
     (- Kruskal)
     ( - Prim))
 
-2. Optmization technique
+2. Optimization technique
    + reversing segments
 
 (3. Trial and Error)
@@ -311,7 +311,7 @@ discussion, or to be perfomed later.
 1. __Nearest Neighbor__ : Visit the nearest city from the present city.
 
 
-2. __Greedy__ : Connect the shortest edges first until all the poitns are connected.
+2. __Greedy__ : Connect the shortest edges first until all the points are connected.
 
 3. __Random Insertion__ : Pick one unvisited city randomly and put it in the nearest edge.
 
@@ -330,12 +330,12 @@ distance(A, C) + distance(B, C) - distance(A, B)
 
 
 
-#### Optmization Technique
+#### Optimization Technique
 
 ##### Reversing Segments
 
 It is apparent that a crossing makes the route unnecessary longer.
-The tour becomse shorter when the paths are straighten. 
+The tour becomes shorter when the paths are straighten. 
 
 
 
@@ -352,23 +352,23 @@ The tour becomse shorter when the paths are straighten.
 ```
 
 This amounts to reverse the segment `B-D`, and reconnect the segment
-'D-B' to `A` and `C` again. The techque is also called '2-opt'.
+'D-B' to `A` and `C` again. The technique is also called '2-opt'.
 
 
 ##### Other Techniques
 
-Opmization techniques are the quintessence/essence of TSP. There are
-numbers of alghorisms that are well studied.
+Optimization techniques are the quintessence/essence of TSP. There are
+numbers of algorithms that are well studied.
 
   (+ 3-opt)
   (+ or-1-opt, or-2-opt)
-  (+ Divide and Conqure) 
-  (+ Simulated Anealing)
+  (+ Divide and Conquer) 
+  (+ Simulated Annealing)
   (+ Genetic Algorithm)
-  (+ Ant Colony Optmization)
+  (+ Ant Colony Optimization)
 
 
-#### Off-the-shelf Opmiziation Package
+#### Off-the-shelf Optimization Package
 
 Other choices may be Pulp, MIP, etc. 
 
@@ -377,20 +377,17 @@ Other choices may be Pulp, MIP, etc.
 I used the following reference for coding.
 
 
-(Modeling general)
+(Modeling general)\
 https://nbviewer.org/url/norvig.com/ipython/TSP.ipynb
-
-
-(Insertions)
+(Insertions)\
 https://y-uti.hatenablog.jp/entry/2017/11/04/135809
-
-(Or-Tools)
+(Or-Tools)\
 https://qiita.com/SaitoTsutomu/items/ab9d657c49879df69928
 https://developers.google.com/optimization/routing/vrp
 
 In particular this project heavily in debs to the notebook published
 in the first reference. Not only the algorithms themselves, but the
-sytle of the coding is highly elegant. I tried to follow the codes
+style of the coding is highly elegant. I tried to follow the codes
 there as precise as possible with minimum modifications.
 
 ------------------------------------------------------------------
