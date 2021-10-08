@@ -36,19 +36,19 @@ We tried
   - one off-the-shelf optimization solver (`OR-Tools` by Google)
 
 
-1. __Exact Solution is hard__ About 10 cities are the upper limit I
+1. __Exact Solution is hard__ : About 10 cities are the upper limit I
    could calculate with a laptop.
 
-2. __Insertion Algorithms are similar__ At `n_city=99`, different
+2. __Insertion Algorithms are similar__ : At `n_city=99`, different
    initial solutions yield the tour-lengths not different by 8% from
    the best solution.
 
-3. __Reversing segments works__ Straighten the crossings improves the
+3. __Reversing segments works__ : Straighten the crossings improves the
     solution significantly.
 
 ![Reverse Segments for GreedySolution](./images/reverse_segments.png)
 
-4. __OR-tools is simple__ `OR-Tools` and its Python wrapper makes the
+4. __OR-tools is simple__ : `OR-Tools` and its Python wrapper makes the
     code short. The following is the entire function needed. `cities`
     is the list of coordinates of the cities.  `ortools_vrp` in the
     code is the python wrapper. 'vrp' stands for 'Vehicle Routing
@@ -71,12 +71,12 @@ def ortool_tsp(cities):
     return tour_opt, tour_initial
 ```
 
-5. __OR-tools performs good__ Ortool consistently performs best in
+5. __OR-tools performs good__ : Ortool consistently performs best in
    terms of the total length of the final tour. Mean total lengths
    over the 5 model-cities were calculated with each algorithm for
    comparison.
 
-6.. __In particular with large map__ The execution times of handmade
+6.. __In particular with large map__ : The execution times of handmade
    initial solutions increase exponentially with the number of cities
    in a tour.  For small numbers of cities, the optimization by
    ortools takes much longer than other initial-solution algorithms.
