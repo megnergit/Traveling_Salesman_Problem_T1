@@ -373,8 +373,7 @@ https://nbviewer.org/url/norvig.com/ipython/TSP.ipynb
 https://y-uti.hatenablog.jp/entry/2017/11/04/135809
 
 (Or-Tools)\
-https://qiita.com/SaitoTsutomu/items/ab9d657c49879df69928
-
+https://qiita.com/SaitoTsutomu/items/ab9d657c49879df69928<br />
 https://developers.google.com/optimization/routing/vrp
 
 In particular this project heavily in debs to the notebook published
