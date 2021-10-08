@@ -85,6 +85,7 @@ def ortool_tsp(cities):
    performance of ortools overtakes others at around `n_city` =
    100-200.
 
+![For Large Maps OR-Tools Outperforms](./images/large_maps.png)
 ------------------------------------------------------------------
 ## Directory Tree
 ```
