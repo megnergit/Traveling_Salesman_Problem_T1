@@ -298,7 +298,6 @@ discussion, or to be performed later.
 
 6. Benchmarking
 
-
 #### Initial solution quick overview
 
 1. __Nearest Neighbor__ : Visit the nearest city from the present city.
@@ -316,16 +315,12 @@ to the edge `A-B` is calculated as follows.
 distance(A, C) + distance(B, C) - distance(A, B)
 ```
 
-
-
 #### Optimization Technique
 
 ##### Reversing Segments
 
 It is apparent that a crossing makes the route unnecessary longer.
 The tour becomes shorter when the paths are straighten. 
-
-
 
 ```
 (crossed)        =>    (straightened)
@@ -342,7 +337,6 @@ The tour becomes shorter when the paths are straighten.
 This amounts to reverse the segment `B-D`, and reconnect the segment
 'D-B' to `A` and `C` again. The technique is also called '2-opt'.
 
-
 ##### Other Techniques
 
 Optimization techniques are the quintessence/essence of TSP. There are
@@ -354,7 +348,6 @@ numbers of algorithms that are well studied.
   (+ Simulated Annealing)
   (+ Genetic Algorithm)
   (+ Ant Colony Optimization)
-
 
 #### Off-the-shelf Optimization Package
 
