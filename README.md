@@ -35,7 +35,6 @@ We tried
   - one optimization algorithm ('reverse segmentation', also known as '2-opt')
   - one off-the-shelf optimization solver (`OR-Tools` by Google)
 
-
 1. __Exact Solution is hard__ : About 10 cities are the upper limit I
    could calculate with a laptop.
 2. __Insertion Algorithms are similar__ : At `n_city=99`, different
