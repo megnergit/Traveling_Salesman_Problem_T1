@@ -2,9 +2,9 @@
 
 ## Traveling Salesman Problem
 
-Traveling Salesman Problem (TSP) is to find the shortest route while
-visiting all the cities that are given. Every city has to be visited,
-but once. The salesman will come back to the city he started.
+Traveling Salesman Problem (TSP) is to find the shortest route to
+visit all the cities that are given. Every city has to be visited, but
+only once. The salesman must come back to the city he started.
 
 ------------------------------------------------------------------
 ## How to run the Demo
@@ -18,11 +18,11 @@ but once. The salesman will come back to the city he started.
      proceeds. Otherwise press `n`.
      
    + Visualization is provided by `plotly`. When plots show up on your
-     browser,
+     browser, click `__PLAY__`. An animation will start then.
+
 
 ![Exact Solution Before Animation](./images/exact_solution_before.png)     
 
-     click `__PLAY__`. An animation will start.
 
 ![Exact Solution After Animation](./images/exact_solution_after.png)     
 
@@ -36,7 +36,7 @@ We tried
   - one off-the-shelf optimization solver (`OR-Tools` by Google)
 
 1. __Exact Solution is hard__ : About 10 cities are the upper limit I
-   could calculate with a laptop.
+   could run with my laptop.
 2. __Insertion Algorithms are similar__ : At `n_city=99`, different
    initial solutions yield the tour-lengths not different by 8% from
    the best solution.
